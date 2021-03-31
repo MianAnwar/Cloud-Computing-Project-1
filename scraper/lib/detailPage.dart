@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:amplify_flutter/amplify.dart';
+import 'package:amplify_storage_s3/amplify_storage_s3.dart';
+// import 'amplifyconfiguration.dart';
 
 import 'Page.dart';
 
 class ResultPages extends StatefulWidget {
+///////////////////////
+
+  ///////////////////////
   final List<String> cats;
   final List<String> dogs;
   final List<String> cars;
@@ -17,6 +26,9 @@ class ResultPages extends StatefulWidget {
 
 class _ResultPagesState extends State<ResultPages>
     with SingleTickerProviderStateMixin {
+  bool isAmplifyConfigured = false;
+  String _uploadFileResult = '';
+  String _getUrlResult = '';
   TabController _tabController;
   //
 
@@ -122,12 +134,10 @@ class _ResultPagesState extends State<ResultPages>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           // upload to AWS S3 Bucket
+          // Task2
         },
         tooltip: 'Upload to AWS S3 Bucket',
-        label: Icon(
-          Icons.cloud_upload,
-          size: 30,
-        ),
+        label: Icon(Icons.cloud_upload, size: 30),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       // bottomNavigationBar: BottomBar(i: 1),
@@ -143,5 +153,67 @@ class _ResultPagesState extends State<ResultPages>
           style: TextStyle(
               fontFamily: 'Varela', fontSize: 22.0, color: Color(0xFF545D68))),
     );
+  }
+
+  Future<void> uploadToAWSS3() {
+    ////
+  }
+
+  ////////
+  void configureAmplify() async {
+    // First add plugins (Amplify native requirements)
+    AmplifyStorageS3 storage = new AmplifyStorageS3();
+    AmplifyAuthCognito auth = new AmplifyAuthCognito();
+    Amplify.addPlugins([auth, storage]);
+
+    try {
+      // Configure
+      await Amplify.configure(amplifyconfig);
+    } on AmplifyAlreadyConfiguredException {
+      print(
+          'Amplify was already configured. Looks like app restarted on android.');
+    }
+
+    setState(() {
+      isAmplifyConfigured = true;
+    });
+  }
+
+  void upload() async {
+    try {
+      print('In upload');
+      // Uploading the file with options
+      File local = await FilePicker.pickFiles(type: FileType.image);
+      final key = new DateTime.now().toString();
+      Map<String, String> metadata = <String, String>{};
+      metadata['name'] = 'Cat';
+      metadata['desc'] = 'A Image file';
+      S3UploadFileOptions options = S3UploadFileOptions(
+          accessLevel: StorageAccessLevel.guest, metadata: metadata);
+      UploadFileResult result = await Amplify.Storage.uploadFile(
+          key: key, local: local, options: options);
+      setState(() {
+        _uploadFileResult = result.key;
+      });
+    } catch (e) {
+      print('UploadFile Err: ' + e.toString());
+    }
+  }
+
+  void getUrl() async {
+    try {
+      print('In getUrl');
+      String key = _uploadFileResult;
+      S3GetUrlOptions options = S3GetUrlOptions(
+          accessLevel: StorageAccessLevel.guest, expires: 10000);
+      GetUrlResult result =
+          await Amplify.Storage.getUrl(key: key, options: options);
+
+      setState(() {
+        _getUrlResult = result.url;
+      });
+    } catch (e) {
+      print('GetUrl Err: ' + e.toString());
+    }
   }
 }
